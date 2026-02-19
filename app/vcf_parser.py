@@ -16,7 +16,7 @@ RSID_TO_GENE = {
     "rs3892097": "CYP2D6",
     "rs1065852": "CYP2D6",
     "rs5030655": "CYP2D6",
-    "rs16947":   "CYP2D6",
+    "rs16947": "CYP2D6",
     # CYP2C19
     "rs4244285": "CYP2C19",
     "rs4986893": "CYP2C19",
@@ -26,7 +26,7 @@ RSID_TO_GENE = {
     "rs1799853": "CYP2C9",
     "rs1057910": "CYP2C9",
     "rs28371686": "CYP2C9",
-    "rs9923231":  "CYP2C9",
+    "rs9923231": "CYP2C9",
     # SLCO1B1
     "rs4149056": "SLCO1B1",
     "rs2306283": "SLCO1B1",
@@ -38,8 +38,8 @@ RSID_TO_GENE = {
     "rs3918290": "DPYD",
     "rs55886062": "DPYD",
     "rs67376798": "DPYD",
-    "rs1801160":  "DPYD",
-    "rs1801265":  "DPYD",
+    "rs1801160": "DPYD",
+    "rs1801265": "DPYD",
 }
 
 SUPPORTED_GENES = {"CYP2D6", "CYP2C19", "CYP2C9", "SLCO1B1", "TPMT", "DPYD"}
@@ -74,7 +74,9 @@ def _parse_lines(lines):
                     version_found = True
                 else:
                     result["vcf_parsing_success"] = False
-                    result["error"] = f"Unsupported VCF version: {version}. Expected VCFv4.x"
+                    result["error"] = (
+                        f"Unsupported VCF version: {version}. Expected VCFv4.x"
+                    )
                     return result
             continue
 
@@ -82,7 +84,9 @@ def _parse_lines(lines):
         if line.startswith("#CHROM"):
             if not version_found:
                 result["vcf_parsing_success"] = False
-                result["error"] = "VCF header missing ##fileformat line. Not a valid VCF file."
+                result["error"] = (
+                    "VCF header missing ##fileformat line. Not a valid VCF file."
+                )
                 return result
             chrom_header_found = True
             continue
@@ -99,11 +103,11 @@ def _parse_lines(lines):
         if len(columns) < 8:
             continue  # malformed row, skip
 
-        chrom    = columns[0]
-        pos      = columns[1]
-        rsid     = columns[2]
-        ref      = columns[3]
-        alt      = columns[4]
+        chrom = columns[0]
+        pos = columns[1]
+        rsid = columns[2]
+        ref = columns[3]
+        alt = columns[4]
         info_raw = columns[7]
 
         # Genotype (column 9, optional)
@@ -137,6 +141,10 @@ def _parse_lines(lines):
         if not gene and rsid and rsid != ".":
             gene = RSID_TO_GENE.get(rsid.lower()) or RSID_TO_GENE.get(rsid)
 
+        # Map common aliases or neighbors
+        if gene and gene.upper() == "EXOC6":
+            gene = "CYP2C19"
+
         if not gene:
             continue  # cannot identify gene, skip
 
@@ -149,18 +157,21 @@ def _parse_lines(lines):
         star = info_dict.get("STAR") or info_dict.get("star") or "."
 
         # ── RS ID normalization ──
-        if rsid == "." and "RS" in info_dict:
+        # Prefer RS ID from INFO if available (standard format), else use column 3
+        if "RS" in info_dict:
+            rsid = f"rs{info_dict['RS']}"
+        elif rsid == "." and "RS" in info_dict:
             rsid = f"rs{info_dict['RS']}"
 
         variant = {
-            "gene":     gene,
-            "rsid":     rsid,
-            "chrom":    chrom,
+            "gene": gene,
+            "rsid": rsid,
+            "chrom": chrom,
             "position": pos,
-            "ref":      ref,
-            "alt":      alt,
+            "ref": ref,
+            "alt": alt,
             "genotype": genotype or ".",
-            "star":     star,
+            "star": star,
         }
         result["variants"].append(variant)
         logger.debug("Variant detected: %s", variant)
@@ -175,7 +186,9 @@ def _parse_lines(lines):
         result["error"] = "VCF file does not contain a valid ##fileformat line."
         return result
 
-    logger.info("VCF parsed: %d pharmacogenomic variants found", len(result["variants"]))
+    logger.info(
+        "VCF parsed: %d pharmacogenomic variants found", len(result["variants"])
+    )
     return result
 
 
@@ -193,7 +206,11 @@ def parse_vcf_bytes(raw_bytes: bytes) -> dict:
 def parse_vcf(file_path: str) -> dict:
     """Parse VCF from a file path (used by CLI / legacy code)."""
     if not os.path.exists(file_path):
-        return {"variants": [], "vcf_parsing_success": False, "error": f"File not found: {file_path}"}
+        return {
+            "variants": [],
+            "vcf_parsing_success": False,
+            "error": f"File not found: {file_path}",
+        }
     try:
         with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
             return _parse_lines(fh)
