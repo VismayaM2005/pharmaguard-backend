@@ -1,0 +1,9 @@
+##fileformat=VCFv4.2
+##source=PharmaGuard-Sample
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=STAR,Number=1,Type=String,Description="Star allele">
+##INFO=<ID=RS,Number=1,Type=Integer,Description="dbSNP rs number">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE003
+chr10	94938683	rs1799853	C	T	58	PASS	GENE=CYP2C9;STAR=*2;RS=1799853	GT	0/1
+chr10	94942290	rs1057910	A	C	60	PASS	GENE=CYP2C9;STAR=*3;RS=1057910	GT	0/1

@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##source=PharmaGuard_Test
+##reference=GRCh37
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=RS,Number=1,Type=String,Description="dbSNP ID">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+1	97770920	rs1801160	C	T	.	PASS	GENE=DPYD;RS=rs1801160	GT	0/1
