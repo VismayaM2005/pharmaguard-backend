@@ -1,10 +1,10 @@
 import os
-from diplotype_engine import load_all_tables
-from phenotype_engine import get_drug_recommendation
-from risk_engine import classify_risk
-from schemas import build_response
-from vcf_parser import parse_vcf
-from dpyd_engine import infer_dpyd_phenotype
+from .diplotype_engine import load_all_tables
+from .phenotype_engine import get_drug_recommendation
+from .risk_engine import classify_risk
+from .schemas import build_response
+from .vcf_parser import parse_vcf
+from .dpyd_engine import infer_dpyd_phenotype
 
 
 # Drug → Gene mapping
