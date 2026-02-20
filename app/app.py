@@ -1,4 +1,8 @@
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import os
+
 from .diplotype_engine import load_all_tables
 from .phenotype_engine import get_drug_recommendation
 from .risk_engine import classify_risk
@@ -6,6 +10,11 @@ from .schemas import build_response
 from .vcf_parser import parse_vcf
 from .dpyd_engine import infer_dpyd_phenotype
 
+# ✅ CREATE FASTAPI APP
+app = FastAPI()
+
+# Load CPIC tables at startup
+load_all_tables()
 
 # Drug → Gene mapping
 DRUG_GENE_MAP = {
@@ -25,46 +34,34 @@ def infer_phenotype(gene, variant):
     if gene == "DPYD":
         return infer_dpyd_phenotype(rsid, genotype)
 
-    # For now fallback
     return "Normal Metabolizer"
 
 
-if __name__ == "__main__":
+# 🔥 API ENDPOINT
+@app.post("/analyze")
+async def analyze(
+    patient_id: str = Form(...),
+    drug_input: str = Form(...),
+    file: UploadFile = File(...)
+):
 
-    load_all_tables()
-
-    patient_id = "PATIENT_001"
-
-    # 🔥 MULTI-DRUG INPUT
-    drug_input = "FLUOROURACIL, CODEINE"
-    drugs = [d.strip().upper() for d in drug_input.split(",")]
-
-    vcf_file = "patient_dpyd_test.vcf"
-
-    print("VCF file exists:", os.path.exists(vcf_file))
-
-    parse_result = parse_vcf(vcf_file)
+    contents = await file.read()
+    parse_result = parse_vcf(contents)
 
     if not parse_result["vcf_parsing_success"]:
-        print("VCF Parsing Error:", parse_result["error"])
-        exit()
+        return {"error": parse_result["error"]}
 
     variants = parse_result["variants"]
-
-    if not variants:
-        print("No pharmacogenomic variants detected.")
-        exit()
+    drugs = [d.strip().upper() for d in drug_input.split(",")]
 
     final_outputs = []
 
     for drug in drugs:
 
         gene = DRUG_GENE_MAP.get(drug)
-
         if not gene:
             continue
 
-        # Find matching variant for this gene
         gene_variants = [v for v in variants if v["gene"] == gene]
 
         if gene_variants:
@@ -91,7 +88,12 @@ if __name__ == "__main__":
         final_json["pharmacogenomic_profile"]["detected_variants"] = gene_variants
         final_outputs.append(final_json)
 
-    print("\nFINAL OUTPUTS:\n")
+    return final_outputs
 
-    for output in final_outputs:
-        print(output)
+
+# Serve frontend
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
+@app.get("/")
+def serve_index():
+    return FileResponse("frontend/index.html")
