@@ -7,8 +7,7 @@
 ---
 
 ## Live Demo
-- **Frontend**: *(Deploy to Vercel — see below)*
-- **Backend**: *(Deploy to Render — see below)*
+
 
 ---
 
@@ -188,13 +187,8 @@ Located in `samples/`:
 
 ---
 
-## Deployment
+## Deployment Instructions
 
-### Frontend → Vercel
-```bash
-npm install -g vercel
-vercel frontend/
-```
 
 ### Backend → Render
 1. Push to GitHub
