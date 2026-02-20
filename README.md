@@ -93,7 +93,25 @@ uvicorn main:app --reload --port 8000
 
 ### 4. Open Frontend
 Open `frontend/index.html` in your browser.
-Set Backend URL to `https://pharmaguard-backend-bc12.onrender.com/` and click **Ping** to verify.
+Set Backend URL to `http://localhost:8000/` and click **Ping** to verify.
+
+---
+
+## Deployment (Render)
+
+### 1. Create Web Service
+- Connect your GitHub repository to Render.
+- **Runtime:** Python 3
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `uvicorn app.app:app --host 0.0.0.0 --port $PORT`
+
+### 2. Environment Variables
+Add the following value in the **Environment** tab:
+- `GEMINI_API_KEY`: Your Google AI Studio API Key.
+- `PYTHON_VERSION`: `3.11.0` (Recommended)
+
+### 3. Verification
+Once deployed, replace the Backend URL in `frontend/index.html` with your Render URL (e.g., `https://pharmaguard-backend-bc12.onrender.com`).
 
 ---
 
