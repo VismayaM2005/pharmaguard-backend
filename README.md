@@ -94,7 +94,7 @@ uvicorn main:app --reload --port 8000
 
 ### 4. Open Frontend
 Open `frontend/index.html` in your browser.
-Set Backend URL to `http://localhost:8000` and click **Ping** to verify.
+Set Backend URL to `https://pharmaguard-backend-bc12.onrender.com/` and click **Ping** to verify.
 
 ---
 
@@ -126,7 +126,7 @@ Analyze pharmacogenomic variants from a VCF file for specified drugs.
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/analyze \
+curl -X POST https://pharmaguard-backend-bc12.onrender.com//analyze \
   -F "vcf_file=@samples/sample_DPYD_poor.vcf" \
   -F "drugs=FLUOROURACIL,CODEINE" \
   -F "patient_id=PATIENT_001"

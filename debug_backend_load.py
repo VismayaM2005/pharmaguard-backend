@@ -3,7 +3,7 @@ import requests, time
 
 # Test script for backend load
 def test_backend():
-    url = "http://localhost:8000/analyze"
+    url = "https://pharmaguard-backend-bc12.onrender.com//analyze"
     # Create a dummy VCF file content if one doesn't exist for the test
     vcf_content = b"""##fileformat=VCFv4.2
 #CHROM POS ID REF ALT QUAL FILTER INFO
