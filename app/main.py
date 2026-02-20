@@ -7,13 +7,21 @@ import logging
 import os
 import io
 import sys
+import asyncio
 from datetime import datetime
 from typing import List
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add app directory to path for local imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -34,17 +42,21 @@ logger = logging.getLogger("pharmaguard")
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 SUPPORTED_DRUGS = {
-    "CODEINE", "WARFARIN", "CLOPIDOGREL",
-    "SIMVASTATIN", "AZATHIOPRINE", "FLUOROURACIL",
+    "CODEINE",
+    "WARFARIN",
+    "CLOPIDOGREL",
+    "SIMVASTATIN",
+    "AZATHIOPRINE",
+    "FLUOROURACIL",
 }
 
 DRUG_GENE_MAP = {
-    "CODEINE":       "CYP2D6",
-    "WARFARIN":      "CYP2C9",
-    "CLOPIDOGREL":   "CYP2C19",
-    "SIMVASTATIN":   "SLCO1B1",
-    "AZATHIOPRINE":  "TPMT",
-    "FLUOROURACIL":  "DPYD",
+    "CODEINE": "CYP2D6",
+    "WARFARIN": "CYP2C9",
+    "CLOPIDOGREL": "CYP2C19",
+    "SIMVASTATIN": "SLCO1B1",
+    "AZATHIOPRINE": "TPMT",
+    "FLUOROURACIL": "DPYD",
 }
 
 MAX_VCF_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -64,6 +76,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ─── Startup ──────────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
@@ -75,7 +88,11 @@ async def startup_event():
 # ─── Health ───────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat(), "service": "PharmaGuard API"}
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "PharmaGuard API",
+    }
 
 
 # ─── Analyze ──────────────────────────────────────────────────────────────────
@@ -85,7 +102,12 @@ async def analyze(
     drugs: str = Form(...),
     patient_id: str = Form("PATIENT_001"),
 ):
-    logger.info("Received analysis request – patient=%s drugs=%s file=%s", patient_id, drugs, vcf_file.filename)
+    logger.info(
+        "Received analysis request – patient=%s drugs=%s file=%s",
+        patient_id,
+        drugs,
+        vcf_file.filename,
+    )
 
     # ── 1. Read & size-check VCF ─────────────────────────────────────────────
     raw_bytes = await vcf_file.read()
@@ -115,10 +137,9 @@ async def analyze(
     if not raw_drugs:
         raise HTTPException(status_code=422, detail="No drugs specified.")
 
-    # ── 4. Process each drug ─────────────────────────────────────────────────
-    results = []
+    # ── 4. Process each drug concurrenty ─────────────────────────────────────
 
-    for drug in raw_drugs:
+    async def process_drug(drug):
         gene = DRUG_GENE_MAP[drug]
         gene_variants = [v for v in variants if v["gene"] == gene]
 
@@ -127,6 +148,7 @@ async def analyze(
 
         # Infer phenotype (full label)
         from phenotype_infer import infer_phenotype
+
         phenotype_full = infer_phenotype(gene, gene_variants, diplotype)
 
         # CPIC short code
@@ -158,7 +180,7 @@ async def analyze(
         )
 
         # LLM explanation
-        explanation = generate_explanation(
+        explanation = await generate_explanation(
             drug=drug,
             gene=gene,
             diplotype=diplotype,
@@ -169,8 +191,16 @@ async def analyze(
         )
         output["llm_generated_explanation"]["summary"] = explanation
 
-        logger.info("Drug=%s Gene=%s Phenotype=%s Risk=%s", drug, gene, phenotype_full, risk_label)
-        results.append(output)
+        logger.info(
+            "Drug=%s Gene=%s Phenotype=%s Risk=%s",
+            drug,
+            gene,
+            phenotype_full,
+            risk_label,
+        )
+        return output
+
+    results = await asyncio.gather(*(process_drug(drug) for drug in raw_drugs))
 
     return JSONResponse(content=results)
 

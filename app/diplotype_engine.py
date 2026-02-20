@@ -49,7 +49,7 @@ def resolve_diplotype(gene: str, variants: list) -> str:
     Format: *1/*4A or rs1801265/rs3918290 etc.
     """
     if not variants:
-        return "*1/*1"  # Default wild-type
+        return "*1/*1 (Wild Type)"  # Explicitly label as Wild Type
 
     stars = []
     rsids = []
@@ -57,7 +57,7 @@ def resolve_diplotype(gene: str, variants: list) -> str:
     for v in variants:
         star = v.get("star", ".")
         rsid = v.get("rsid", ".")
-        gt   = v.get("genotype", "0/1")
+        gt = v.get("genotype", "0/1")
 
         if star and star not in (".", ""):
             stars.append(star)

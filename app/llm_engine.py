@@ -45,16 +45,22 @@ GENE_MECHANISM = {
 }
 
 
-def _template_explanation(drug, gene, diplotype, phenotype, risk_label, variants, recommendation):
+def _template_explanation(
+    drug, gene, diplotype, phenotype, risk_label, variants, recommendation
+):
     """
     Generate a structured clinical explanation without LLM (fallback).
     """
     rsids = [v["rsid"] for v in variants if v.get("rsid") and v["rsid"] != "."]
-    stars = list({v["star"] for v in variants if v.get("star") and v["star"] not in (".", "")})
+    stars = list(
+        {v["star"] for v in variants if v.get("star") and v["star"] not in (".", "")}
+    )
 
     rsid_text = ", ".join(rsids) if rsids else "no specific rsID detected in this VCF"
     star_text = " / ".join(stars) if stars else "not determined from VCF"
-    mechanism = GENE_MECHANISM.get(gene, f"{gene} enzyme activity influences drug metabolism.")
+    mechanism = GENE_MECHANISM.get(
+        gene, f"{gene} enzyme activity influences drug metabolism."
+    )
 
     rec_text = ""
     if isinstance(recommendation, dict):
@@ -74,7 +80,9 @@ def _template_explanation(drug, gene, diplotype, phenotype, risk_label, variants
     return summary.strip()
 
 
-def generate_explanation(drug, gene, diplotype, phenotype, risk_label, variants, recommendation):
+async def generate_explanation(
+    drug, gene, diplotype, phenotype, risk_label, variants, recommendation
+):
     """
     Attempt Gemini API call; fall back to template on any failure.
     """
@@ -82,14 +90,23 @@ def generate_explanation(drug, gene, diplotype, phenotype, risk_label, variants,
 
     if not api_key:
         logger.info("GEMINI_API_KEY not set – using template explanation")
-        return _template_explanation(drug, gene, diplotype, phenotype, risk_label, variants, recommendation)
+        return _template_explanation(
+            drug, gene, diplotype, phenotype, risk_label, variants, recommendation
+        )
 
     try:
         import google.generativeai as genai
+
         genai.configure(api_key=api_key)
 
         rsids = [v["rsid"] for v in variants if v.get("rsid") and v["rsid"] != "."]
-        stars = list({v["star"] for v in variants if v.get("star") and v["star"] not in (".", "")})
+        stars = list(
+            {
+                v["star"]
+                for v in variants
+                if v.get("star") and v["star"] not in (".", "")
+            }
+        )
         mechanism = GENE_MECHANISM.get(gene, "")
 
         rec_text = ""
@@ -127,11 +144,13 @@ Generate a concise clinical explanation (2–4 sentences) that:
 Output ONLY the explanation text. No headers, no bullet points."""
 
         model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
+        response = await model.generate_content_async(prompt)
         text = response.text.strip()
         logger.info("LLM explanation generated (len=%d chars)", len(text))
         return text
 
     except Exception as exc:
         logger.warning("LLM call failed (%s) – using template fallback", exc)
-        return _template_explanation(drug, gene, diplotype, phenotype, risk_label, variants, recommendation)
+        return _template_explanation(
+            drug, gene, diplotype, phenotype, risk_label, variants, recommendation
+        )
