@@ -1,4 +1,4 @@
-# PharmaGuard 🧬
+# PharmaGuard 
 ### Pharmacogenomic Risk Prediction System
 **RIFT 2026 Hackathon — Pharmacogenomics / Explainable AI Track**
 
@@ -6,13 +6,13 @@
 
 ---
 
-## 🌐 Live Demo
+## Live Demo
 - **Frontend**: *(Deploy to Vercel — see below)*
 - **Backend**: *(Deploy to Render — see below)*
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
 pharmaguard-backend/
@@ -45,7 +45,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## 🧬 Supported Genes & Drugs
+## Supported Genes & Drugs
 
 | Drug | Gene | Risk Classes |
 |------|------|-------------|
@@ -58,7 +58,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## ⚙️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -71,7 +71,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## 🚀 Local Setup
+## Local Setup
 
 ### 1. Clone & Install
 ```bash
@@ -98,7 +98,7 @@ Set Backend URL to `http://localhost:8000` and click **Ping** to verify.
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 ### `GET /health`
 Returns service health status.
@@ -173,7 +173,7 @@ curl -X POST http://localhost:8000/analyze \
 
 ---
 
-## 🧪 Sample VCF Files
+## Sample VCF Files
 
 Located in `samples/`:
 
@@ -188,7 +188,7 @@ Located in `samples/`:
 
 ---
 
-## ☁️ Deployment
+## Deployment
 
 ### Frontend → Vercel
 ```bash
@@ -205,7 +205,7 @@ vercel frontend/
 
 ---
 
-## 🏆 CPIC Alignment
+## CPIC Alignment
 
 All recommendations are sourced directly from CPIC (Clinical Pharmacogenomics Implementation Consortium) guidelines:
 - [CPIC Codeine / CYP2D6](https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/)
@@ -217,10 +217,10 @@ All recommendations are sourced directly from CPIC (Clinical Pharmacogenomics Im
 
 ---
 
-## 👥 Team
+## Team
 **PharmaGuard Team — RIFT 2026 Hackathon**
-
+Guru Raj Patil 
+Harsha Bharadwaj 
+Thrisha R
+Vismaya M
 ---
-
-## 📄 License
-MIT License
