@@ -1,99 +1,248 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+"""
+PharmaGuard – FastAPI Backend (Production Entry Point)
+RIFT 2026 Hackathon | Pharmacogenomics / Explainable AI Track
+"""
+
+import logging
 import os
+import sys
+import asyncio
+from datetime import datetime
+from typing import List
 
-from .diplotype_engine import load_all_tables
-from .phenotype_engine import get_drug_recommendation
-from .risk_engine import classify_risk
-from .schemas import build_response
-from .vcf_parser import parse_vcf
-from .dpyd_engine import infer_dpyd_phenotype
+import uvicorn
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from dotenv import load_dotenv
 
-# ✅ CREATE FASTAPI APP
-app = FastAPI()
+# Load environment variables
+load_dotenv()
 
-# Load CPIC tables at startup
-load_all_tables()
+# Add app directory to path to ensure local imports work
+sys.path.insert(0, os.path.dirname(__file__))
 
-# Drug → Gene mapping
+# Import logic from helper modules
+try:
+    from vcf_parser import parse_vcf_bytes
+    from diplotype_engine import load_all_tables, resolve_diplotype
+    from phenotype_engine import get_drug_recommendation, phenotype_short_code
+    from risk_engine import classify_risk
+    from schemas import build_response
+    from llm_engine import generate_explanation
+    from phenotype_infer import infer_phenotype
+except ImportError:
+    # Fallback for relative imports if run as a package without path hack
+    from .vcf_parser import parse_vcf_bytes
+    from .diplotype_engine import load_all_tables, resolve_diplotype
+    from .phenotype_engine import get_drug_recommendation, phenotype_short_code
+    from .risk_engine import classify_risk
+    from .schemas import build_response
+    from .llm_engine import generate_explanation
+    from .phenotype_infer import infer_phenotype
+
+# ─── Logging ────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s – %(message)s",
+)
+logger = logging.getLogger("pharmaguard")
+
+# ─── Constants ───────────────────────────────────────────────────────────────
+SUPPORTED_DRUGS = {
+    "CODEINE",
+    "WARFARIN",
+    "CLOPIDOGREL",
+    "SIMVASTATIN",
+    "AZATHIOPRINE",
+    "FLUOROURACIL",
+}
+
 DRUG_GENE_MAP = {
-    "FLUOROURACIL": "DPYD",
     "CODEINE": "CYP2D6",
+    "WARFARIN": "CYP2C9",
     "CLOPIDOGREL": "CYP2C19",
     "SIMVASTATIN": "SLCO1B1",
     "AZATHIOPRINE": "TPMT",
-    "WARFARIN": "CYP2C9"
+    "FLUOROURACIL": "DPYD",
 }
 
+MAX_VCF_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
-def infer_phenotype(gene, variant):
-    rsid = variant["rsid"]
-    genotype = variant["genotype"]
+# ─── App ─────────────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="PharmaGuard API",
+    description="Pharmacogenomic Risk Prediction System – RIFT 2026",
+    version="1.0.0",
+)
 
-    if gene == "DPYD":
-        return infer_dpyd_phenotype(rsid, genotype)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    return "Normal Metabolizer"
+
+# ─── Startup ──────────────────────────────────────────────────────────────────
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Loading diplotype tables …")
+    load_all_tables()
+    logger.info("PharmaGuard API ready ✓")
 
 
-# 🔥 API ENDPOINT
+# ─── Health ───────────────────────────────────────────────────────────────────
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "PharmaGuard API",
+    }
+
+
+# ─── Analyze ──────────────────────────────────────────────────────────────────
 @app.post("/analyze")
 async def analyze(
-    patient_id: str = Form(...),
-    drug_input: str = Form(...),
-    file: UploadFile = File(...)
+    vcf_file: UploadFile = File(...),
+    drugs: str = Form(...),
+    patient_id: str = Form("PATIENT_001"),
 ):
+    logger.info(
+        "Received analysis request – patient=%s drugs=%s file=%s",
+        patient_id,
+        drugs,
+        vcf_file.filename,
+    )
 
-    contents = await file.read()
-    parse_result = parse_vcf(contents)
+    # ── 1. Read & size-check VCF ─────────────────────────────────────────────
+    raw_bytes = await vcf_file.read()
+    if len(raw_bytes) > MAX_VCF_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="VCF file exceeds 5 MB limit.")
+
+    # ── 2. Parse VCF ─────────────────────────────────────────────────────────
+    parse_result = parse_vcf_bytes(raw_bytes)
 
     if not parse_result["vcf_parsing_success"]:
-        return {"error": parse_result["error"]}
+        raise HTTPException(
+            status_code=400,
+            detail=f"VCF parsing failed: {parse_result.get('error', 'Unknown error')}",
+        )
 
     variants = parse_result["variants"]
-    drugs = [d.strip().upper() for d in drug_input.split(",")]
+    logger.info("Parsed %d pharmacogenomic variants", len(variants))
 
-    final_outputs = []
+    # ── 3. Validate drugs ────────────────────────────────────────────────────
+    raw_drugs = [d.strip().upper() for d in drugs.split(",") if d.strip()]
+    invalid_drugs = [d for d in raw_drugs if d not in SUPPORTED_DRUGS]
+    if invalid_drugs:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported drug(s): {', '.join(invalid_drugs)}. Supported: {', '.join(sorted(SUPPORTED_DRUGS))}",
+        )
+    if not raw_drugs:
+        raise HTTPException(status_code=422, detail="No drugs specified.")
 
-    for drug in drugs:
+    # ── 4. Process each drug concurrenty ─────────────────────────────────────
 
-        gene = DRUG_GENE_MAP.get(drug)
-        if not gene:
-            continue
-
+    async def process_drug(drug):
+        gene = DRUG_GENE_MAP[drug]
         gene_variants = [v for v in variants if v["gene"] == gene]
 
-        if gene_variants:
-            variant = gene_variants[0]
-            phenotype = infer_phenotype(gene, variant)
-            diplotype = f"{variant['rsid']}-{variant['genotype']}"
-        else:
-            phenotype = "Normal Metabolizer"
-            diplotype = "No variant detected"
+        # Resolve diplotype
+        diplotype = resolve_diplotype(gene, gene_variants)
 
-        recommendation = get_drug_recommendation(gene, drug, phenotype)
-        risk_label = classify_risk(drug, phenotype)
+        # Infer phenotype (full label)
+        # Note: moved import top-level or ensure it's imported
 
-        final_json = build_response(
+        phenotype_full = infer_phenotype(gene, gene_variants, diplotype)
+
+        # CPIC short code
+        phenotype_code = phenotype_short_code(phenotype_full)
+
+        # Risk label
+        risk_label = classify_risk(drug, phenotype_full)
+
+        # Clinical recommendation
+        recommendation = get_drug_recommendation(gene, drug, phenotype_full)
+        if recommendation is None:
+            recommendation = {
+                "recommendation": "No specific CPIC guideline available for this phenotype.",
+                "strength": "N/A",
+            }
+
+        # Build base JSON
+        output = build_response(
             patient_id=patient_id,
             drug=drug,
             gene=gene,
             diplotype=diplotype,
-            phenotype=phenotype,
+            phenotype=phenotype_code,
+            phenotype_full=phenotype_full,
             risk_label=risk_label,
-            recommendation=recommendation
+            recommendation=recommendation,
+            detected_variants=gene_variants,
+            vcf_parsing_success=parse_result["vcf_parsing_success"],
         )
 
-        final_json["pharmacogenomic_profile"]["detected_variants"] = gene_variants
-        final_outputs.append(final_json)
+        # LLM explanation
+        try:
+            explanation = await generate_explanation(
+                drug=drug,
+                gene=gene,
+                diplotype=diplotype,
+                phenotype=phenotype_full,
+                risk_label=risk_label,
+                variants=gene_variants,
+                recommendation=recommendation,
+            )
+            output["llm_generated_explanation"]["summary"] = explanation
+        except Exception as e:
+            logger.error("LLM Generation failed: %s", e)
+            output["llm_generated_explanation"][
+                "summary"
+            ] = "AI explanation unavailable."
 
-    return final_outputs
+        logger.info(
+            "Drug=%s Gene=%s Phenotype=%s Risk=%s",
+            drug,
+            gene,
+            phenotype_full,
+            risk_label,
+        )
+        return output
+
+    results = await asyncio.gather(*(process_drug(drug) for drug in raw_drugs))
+
+    return JSONResponse(content=results)
 
 
-# Serve frontend
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
+# ─── Static Files (Frontend) ─────────────────────────────────────────────────
+# Serve index.html at root
 @app.get("/")
-def serve_index():
-    return FileResponse("frontend/index.html")
+async def serve_index():
+    # Attempt to find index.html in likely locations
+    # Usually frontend is sibling to app folder, so "frontend/index.html" relative to root
+    # But if execution is from root
+    if os.path.exists("frontend/index.html"):
+        return FileResponse("frontend/index.html")
+    # If using absolute path fallback (dev env)
+    abs_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+    if os.path.exists(abs_path):
+        return FileResponse(abs_path)
+    return {"error": "Frontend not found on server."}
+
+
+# Mount frontend assets if needed
+# Since index.html is standalone-ish but references fonts/etc externally,
+# if there are local assets they would be in frontend folder
+if os.path.exists("frontend"):
+    app.mount("/", StaticFiles(directory="frontend"), name="frontend")
+
+
+# ─── Entry point ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

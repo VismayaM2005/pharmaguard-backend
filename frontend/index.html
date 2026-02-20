@@ -1316,7 +1316,8 @@
 
     // ── Ping backend ──────────────────────────────────────────────────────────
     async function testBackend() {
-      const url = document.getElementById('backend-url').value.trim();
+      const input = document.getElementById('backend-url').value.trim();
+      const url = input.replace(/\/+$/, '');
       const status = document.getElementById('upload-status');
       try {
         const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(4000) });
@@ -1341,7 +1342,8 @@
       results.classList.remove('visible');
       errPanel.style.display = 'none';
 
-      const backendUrl = document.getElementById('backend-url').value.trim();
+      const inputUrl = document.getElementById('backend-url').value.trim();
+      const backendUrl = inputUrl.replace(/\/+$/, '');
       const patientId = document.getElementById('patient-id').value.trim() || 'PATIENT_001';
       const drugs = [...selectedDrugs].join(',');
 
