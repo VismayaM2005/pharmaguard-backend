@@ -219,8 +219,8 @@ All recommendations are sourced directly from CPIC (Clinical Pharmacogenomics Im
 
 ## Team
 **PharmaGuard Team — RIFT 2026 Hackathon**
-Guru Raj Patil 
 Harsha Bharadwaj 
+Guru Raj Patil 
 Thrisha R
 Vismaya M
 ---
