@@ -1,4 +1,4 @@
-# PharmaGuard 🧬
+# PharmaGuard 
 ### Pharmacogenomic Risk Prediction System
 **RIFT 2026 Hackathon — Pharmacogenomics / Explainable AI Track**
 
@@ -6,13 +6,12 @@
 
 ---
 
-## 🌐 Live Demo
-- **Frontend**: *(Deploy to Vercel — see below)*
-- **Backend**: *(Deploy to Render — see below)*
+## Live Demo
+
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
 pharmaguard-backend/
@@ -45,7 +44,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## 🧬 Supported Genes & Drugs
+## Supported Genes & Drugs
 
 | Drug | Gene | Risk Classes |
 |------|------|-------------|
@@ -58,7 +57,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## ⚙️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -71,7 +70,7 @@ VCF Upload → VCF Parser → Gene Filter → Diplotype Resolver
 
 ---
 
-## 🚀 Local Setup
+## Local Setup
 
 ### 1. Clone & Install
 ```bash
@@ -98,7 +97,7 @@ Set Backend URL to `https://pharmaguard-backend-bc12.onrender.com/` and click **
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 ### `GET /health`
 Returns service health status.
@@ -173,7 +172,7 @@ curl -X POST https://pharmaguard-backend-bc12.onrender.com//analyze \
 
 ---
 
-## 🧪 Sample VCF Files
+## Sample VCF Files
 
 Located in `samples/`:
 
@@ -188,13 +187,8 @@ Located in `samples/`:
 
 ---
 
-## ☁️ Deployment
+## Deployment Instructions
 
-### Frontend → Vercel
-```bash
-npm install -g vercel
-vercel frontend/
-```
 
 ### Backend → Render
 1. Push to GitHub
@@ -205,7 +199,7 @@ vercel frontend/
 
 ---
 
-## 🏆 CPIC Alignment
+## CPIC Alignment
 
 All recommendations are sourced directly from CPIC (Clinical Pharmacogenomics Implementation Consortium) guidelines:
 - [CPIC Codeine / CYP2D6](https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/)
@@ -217,10 +211,10 @@ All recommendations are sourced directly from CPIC (Clinical Pharmacogenomics Im
 
 ---
 
-## 👥 Team
+## Team
 **PharmaGuard Team — RIFT 2026 Hackathon**
-
+#### Harsha Bharadwaj 
+#### Guru Raj Patil 
+#### Thrisha R
+#### Vismaya M
 ---
-
-## 📄 License
-MIT License
